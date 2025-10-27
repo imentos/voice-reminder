@@ -1,28 +1,29 @@
 import Foundation
 import AVFoundation
 
-class ConversationManager: ObservableObject {
+class ConversationManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     @Published var isProcessing = false
-    
+    private var completionHandler: (() -> Void)?
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
     func speak(_ text: String, completion: (() -> Void)? = nil) {
+        completionHandler = completion
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         utterance.rate = 0.5 // Slower rate for elderly users
         utterance.volume = 0.9
-        
-        if let completion = completion {
-            NotificationCenter.default.addObserver(forName: .AVSpeechSynthesizerDidFinishSpeechUtterance,
-                                                object: synthesizer,
-                                                queue: nil) { _ in
-                completion()
-                NotificationCenter.default.removeObserver(self,
-                                                        name: .AVSpeechSynthesizerDidFinishSpeechUtterance,
-                                                        object: self.synthesizer)
-            }
-        }
-        
         synthesizer.speak(utterance)
+    }
+
+    // MARK: - AVSpeechSynthesizerDelegate
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        completionHandler?()
+        completionHandler = nil
     }
     
     func getGreeting() -> String {
